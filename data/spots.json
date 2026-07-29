@@ -1,0 +1,9 @@
+{
+  "istanbul": [
+    {"id": 1, "name": "Ayasofya Müzesi", "category": "history", "rating": 4.8, "entry_fee": 100.0, "lat": 41.0084, "lng": 28.9802},
+    {"id": 2, "name": "Topkapı Sarayı", "category": "history", "rating": 4.7, "entry_fee": 150.0, "lat": 41.0115, "lng": 28.9833},
+    {"id": 3, "name": "Kapalıçarşı", "category": "shopping", "rating": 4.5, "entry_fee": 0.0, "lat": 41.0108, "lng": 28.9680},
+    {"id": 4, "name": "Yerebatan Sarnıcı", "category": "history", "rating": 4.6, "entry_fee": 120.0, "lat": 41.0077, "lng": 28.9778},
+    {"id": 5, "name": "Galata Kulesi", "category": "history", "rating": 4.6, "entry_fee": 130.0, "lat": 41.0256, "lng": 28.9741}
+  ]
+}
