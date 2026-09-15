@@ -9,8 +9,7 @@ from typing import List
 # Algoritmalar ve veritabanı
 from app.algorithms.place_scoring import score_places
 from app.algorithms.route_optimizer import partition_into_days
-from app.database import supabase, save_itinerary_to_supabase  # YENİ: Kayıt fonksiyonu eklendi
-
+from app.database import supabase, save_itinerary_to_supabase, share_itinerary_to_supabase, get_public_itineraries_from_supabase
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -44,6 +43,14 @@ class SaveTripRequest(BaseModel):
     max_budget: float
     itinerary: List[dict]
 
+# YENİ: Toplulukta Rota Paylaşma İsteği Modeli
+class ShareTripRequest(BaseModel):
+    user_id: str
+    author_name: str
+    city: str
+    title: str
+    max_budget: float
+    itinerary: List[dict]
 def map_google_type_to_category(types: List[str]) -> str:
     history_keywords = ["museum", "historic_site", "place_of_worship", "mosque", "church", "hindu_temple", "synagogue"]
     nature_keywords = ["park", "natural_feature", "zoo", "aquarium", "campground"]
@@ -171,7 +178,34 @@ def save_itinerary(request: SaveTripRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Veritabanı Kayıt Hatası: {str(e)}")
 
+# YENİ: Rota Paylaşma Endpoint'i (Keşfet Havuzu İçin)
+@app.post("/share-itinerary")
+def share_itinerary(request: ShareTripRequest):
+    try:
+        result = share_itinerary_to_supabase(
+            user_id=request.user_id,
+            author_name=request.author_name,
+            city=request.city,
+            title=request.title,
+            total_budget=request.max_budget,
+            itinerary_data=request.itinerary
+        )
+        return {"status": "success", "message": "Rota başarıyla toplulukta paylaşıldı! 🌍", "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Paylaşım Hatası: {str(e)}")
 
+# YENİ: Keşfet Ekranı İçin Paylaşılan Rotaları Çekme Endpoint'i
+@app.get("/explore-itineraries")
+def explore_itineraries():
+    try:
+        itineraries = get_public_itineraries_from_supabase()
+        return {
+            "status": "success",
+            "total": len(itineraries),
+            "itineraries": itineraries
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Rotalar getirilirken hata oluştu: {str(e)}")
 @app.get("/radar")
 def get_radar_spots(lat: float, lng: float, radius: int = 1500):
     if not GOOGLE_PLACES_API_KEY:

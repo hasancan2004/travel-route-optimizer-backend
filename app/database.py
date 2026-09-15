@@ -31,3 +31,23 @@ def save_itinerary_to_supabase(user_id: str, city: str, total_budget: float, iti
     # 'itineraries' tablosuna insert atıyoruz
     response = supabase.table("itineraries").insert(data).execute()
     return response.data
+
+# 1. Rotayı Topluluk Havuzuna (public_itineraries) Paylaşma Fonksiyonu
+def share_itinerary_to_supabase(user_id: str, author_name: str, city: str, title: str, total_budget: float, itinerary_data: list):
+    data = {
+        "user_id": user_id,
+        "author_name": author_name,
+        "city": city,
+        "title": title,
+        "total_budget": total_budget,
+        "route_json": itinerary_data
+    }
+
+    response = supabase.table("public_itineraries").insert(data).execute()
+    return response.data
+
+# 2. Keşfet Ekranı İçin Paylaşılan Tüm Rotaları Çekme Fonksiyonu
+def get_public_itineraries_from_supabase():
+    # En son paylaşılan rotalar en üstte görünecek şekilde sıralıyoruz
+    response = supabase.table("public_itineraries").select("*").order("created_at", desc=True).execute()
+    return response.data
