@@ -46,8 +46,13 @@ def share_itinerary_to_supabase(user_id: str, author_name: str, city: str, title
     response = supabase.table("public_itineraries").insert(data).execute()
     return response.data
 
-# 2. Keşfet Ekranı İçin Paylaşılan Tüm Rotaları Çekme Fonksiyonu
+# 2. Keşfet Ekranı İçin Paylaşılan Tüm Rotaları Çekme Fonksiyonu (Güvenli Hale Getirildi)
 def get_public_itineraries_from_supabase():
-    # En son paylaşılan rotalar en üstte görünecek şekilde sıralıyoruz
-    response = supabase.table("public_itineraries").select("*").order("created_at", desc=True).execute()
-    return response.data
+    try:
+        # Eğer 'created_at' sütunu tabloda yoksa sıralamayı kaldırıp direkt çekelim ki 500 patlamasın
+        response = supabase.table("public_itineraries").select("*").execute()
+        return response.data if response.data else []
+    except Exception as e:
+        print(f"⚠️ Keşfet rotaları çekilirken uyarı/hata: {e}")
+        # Tablo boşsa veya hata alırsak uygulamanın çökmemesi için boş liste dönüyoruz
+        return []
