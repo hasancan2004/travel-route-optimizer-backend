@@ -1,4 +1,4 @@
-import os
+import os, uvicorn
 import requests
 import traceback
 from fastapi import FastAPI, HTTPException
@@ -243,6 +243,10 @@ def get_radar_spots(lat: float, lng: float, radius: int = 1500):
         "spots": new_spots
     }
 
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port)
 """
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
