@@ -56,3 +56,12 @@ def get_public_itineraries_from_supabase():
         print(f"⚠️ Keşfet rotaları çekilirken uyarı/hata: {e}")
         # Tablo boşsa veya hata alırsak uygulamanın çökmemesi için boş liste dönüyoruz
         return []
+
+# 3. YENİ: Kullanıcının kendi kaydettiği rotaları çekme fonksiyonu (Cloud-First Sync İçin)
+def get_user_itineraries_from_supabase(user_id: str):
+    try:
+        response = supabase.table("itineraries").select("*").eq("user_id", user_id).execute()
+        return response.data if response.data else []
+    except Exception as e:
+        print(f"⚠️ Kullanıcı rotaları çekilirken hata: {e}")
+        return []

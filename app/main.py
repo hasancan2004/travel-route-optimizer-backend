@@ -9,7 +9,7 @@ from typing import List
 # Algoritmalar ve veritabanı
 from app.algorithms.place_scoring import score_places
 from app.algorithms.route_optimizer import partition_into_days
-from app.database import supabase, save_itinerary_to_supabase, share_itinerary_to_supabase, get_public_itineraries_from_supabase
+from app.database import supabase, save_itinerary_to_supabase, share_itinerary_to_supabase, get_public_itineraries_from_supabase, get_user_itineraries_from_supabase
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -242,6 +242,27 @@ def get_radar_spots(lat: float, lng: float, radius: int = 1500):
         "total_spots": len(new_spots),
         "spots": new_spots
     }
+
+# Kullanıcının Kaydettiği Rotaları Çekme (Cloud-First Sync)
+@app.get("/user-itineraries/{user_id}")
+def get_user_itineraries(user_id: str):
+    try:
+        user_trips = get_user_itineraries_from_supabase(user_id)
+
+        # Flutter'ın beklediği formata (List<List<ItineraryDayModel>>) uygun hale getiriyoruz
+        formatted_itineraries = []
+        for trip in user_trips:
+            formatted_itineraries.append({
+                "itinerary": trip.get("route_json", [])
+            })
+
+        return {
+            "status": "success",
+            "total": len(formatted_itineraries),
+            "itineraries": formatted_itineraries
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Kullanıcı rotaları getirilirken hata oluştu: {str(e)}")
 
 
 if __name__ == "__main__":
