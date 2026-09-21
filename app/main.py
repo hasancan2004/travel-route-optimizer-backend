@@ -90,14 +90,25 @@ def read_root():
     }
 
 
-# YENİ: Gemini AI NLP Asistan Endpoint'i
+# YENİ: Gemini AI NLP Asistan Endpoint'i (Dinamik Model Seçimli)
 @app.post("/ai-analyze-prompt")
 def analyze_prompt_with_ai(request: AIPromptRequest):
     if not GEMINI_API_KEY:
         raise HTTPException(status_code=500, detail="Gemini API Key eksik veya okunamadı!")
 
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        # 1. Google'a direkt soruyoruz: "Şu an hangi modeller hayatta ve metin üretebiliyor?"
+        valid_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+
+        if not valid_models:
+            raise HTTPException(status_code=500, detail="API anahtarınızda aktif hiçbir model bulunamadı.")
+
+        # 2. İçinde 'flash' geçen en hızlı modeli bul, yoksa listedeki ilk modeli al
+        target_model = next((m for m in valid_models if 'flash' in m), valid_models[0])
+        model_name = target_model.replace('models/', '')  # 'models/' önekini temizliyoruz
+
+        print(f"🤖 Otomatik Seçilen AI Modeli: {model_name}")
+        model = genai.GenerativeModel(model_name)
 
         system_instruction = """
         Sen akıllı bir seyahat asistanısın. Kullanıcının girdiği serbest metni analiz edip, rota algoritmasının anlayacağı parametreleri çıkaracaksın.
