@@ -97,7 +97,7 @@ def analyze_prompt_with_ai(request: AIPromptRequest):
         raise HTTPException(status_code=500, detail="Gemini API Key eksik veya okunamadı!")
 
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        model = genai.GenerativeModel('gemini-pro')
 
         system_instruction = """
         Sen akıllı bir seyahat asistanısın. Kullanıcının girdiği serbest metni analiz edip, rota algoritmasının anlayacağı parametreleri çıkaracaksın.
