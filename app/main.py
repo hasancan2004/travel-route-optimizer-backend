@@ -91,62 +91,87 @@ def read_root():
     }
 
 
-# YENİ: Gemini AI NLP Asistan Endpoint'i (Dinamik Model Seçimli)
+# Gemini AI NLP Asistan Endpoint'i (Sabit Model, Güvenilir)
+# Model listesi: öncelik sırasına göre denenecek
+GEMINI_MODEL_PRIORITY = [
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b",
+    "gemini-1.5-pro",
+    "gemini-pro",
+]
+
+
 @app.post("/ai-analyze-prompt")
 def analyze_prompt_with_ai(request: AIPromptRequest):
     if not GEMINI_API_KEY:
         raise HTTPException(status_code=500, detail="Gemini API Key eksik veya okunamadı!")
 
-    try:
-        # 1. Google'a direkt soruyoruz: "Şu an hangi modeller hayatta ve metin üretebiliyor?"
-        valid_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+    system_instruction = (
+        "Sen bir seyahat veri çıkarma motorusun. "
+        "Kullanıcının mesajını analiz et ve YALNIZCA aşağıdaki JSON formatında çıktı ver. "
+        "Hiçbir ek açıklama, selamlama veya markdown kullanma. "
+        "Cevabın ilk karakteri '{' olmalı, son karakteri '}' olmalı.\n\n"
+        "KURALLAR:\n"
+        "1. Gün sayısı açıkça belirtilmişse (örn: '2 gün') total_days = o sayı; aksi halde 2.\n"
+        "2. city = sadece ana şehir adı, küçük harf, Türkçe karakter yok "
+        "(Konya Selçuklu → konya, Kaleiçi Antalya → antalya).\n"
+        "3. max_budget belirtilmemişse 1000.\n"
+        "4. user_interests yalnızca şu değerlerden oluşabilir: history, nature, food, shopping.\n\n"
+        "FORMAT:\n"
+        '{"city": "sehir", "max_budget": 1000, "total_days": 2, "user_interests": ["history"]}'
+    )
 
-        if not valid_models:
-            raise HTTPException(status_code=500, detail="API anahtarınızda aktif hiçbir model bulunamadı.")
+    last_error = None
+    for model_name in GEMINI_MODEL_PRIORITY:
+        try:
+            print(f"🤖 Denenen AI Modeli: {model_name}")
+            model = genai.GenerativeModel(model_name)
+            full_prompt = f"{system_instruction}\n\nKullanıcının Mesajı: {request.prompt}"
+            response = model.generate_content(full_prompt)
 
-        # 2. İçinde 'flash' geçen en hızlı modeli bul, yoksa listedeki ilk modeli al
-        target_model = next((m for m in valid_models if 'flash' in m), valid_models[0])
-        model_name = target_model.replace('models/', '')  # 'models/' önekini temizliyoruz
+            # Markdown veya kod bloğu temizliği
+            raw_text = response.text.strip()
+            raw_text = raw_text.replace('```json', '').replace('```', '').strip()
 
-        print(f"🤖 Otomatik Seçilen AI Modeli: {model_name}")
-        model = genai.GenerativeModel(model_name)
+            # JSON bloğunu bul ({ ... })
+            start = raw_text.find('{')
+            end = raw_text.rfind('}') + 1
+            if start != -1 and end > start:
+                raw_text = raw_text[start:end]
 
-        system_instruction = """
-                Sen akıllı bir seyahat asistanısın. Kullanıcının girdiği serbest metni analiz edip, rota algoritmasının anlayacağı parametreleri çıkaracaksın.
-                SADECE VE SADECE JSON formatında çıktı ver. Hiçbir ekstra açıklama, selamlama veya markdown formatı kullanma. Çıktı doğrudan parse edilebilir saf JSON olmalı.
+            parsed_data = json.loads(raw_text)
 
-                ÖNEMLİ KURALLAR:
-                1. Kullanıcı metinde gün sayısını açıkça belirttiyse (örneğin '2 gün'), 'total_days' değerine KESİNLİKLE o sayıyı tam sayı olarak ata. Belirtmediyse varsayılan 2 ata.
-                2. 'city' parametresine KESİNLİKLE ana ili/şehri yaz (Örneğin: 'Konya Selçuklu', 'Kaleiçi Antalya' veya 'Beşiktaş İstanbul' gibi ilçeler/semtler yazılsa bile 'city' değerini sadece ana şehir yap: 'konya', 'antalya', 'istanbul'). İlçeleri şehir olarak alma.
+            # Zorunlu alanlar var mı kontrol et
+            required_keys = {"city", "max_budget", "total_days", "user_interests"}
+            if not required_keys.issubset(parsed_data.keys()):
+                raise ValueError(f"Eksik JSON alanları: {required_keys - parsed_data.keys()}")
 
-                Format Kuralları:
-                {
-                    "city": "Şehrin İngilizce karakterli, küçük harfli ana adı (örn: istanbul, konya, antalya)",
-                    "max_budget": Sayısal değer (sadece rakam),
-                    "total_days": Sayısal değer (sadece rakam),
-                    "user_interests": ["history", "nature", "food", "shopping"] listesinden metne uyanlar.
-                }
-                """
+            print(f"✅ AI başarılı ({model_name}): {parsed_data}")
+            return {
+                "status": "success",
+                "message": "AI metni başarıyla analiz etti 🧠",
+                "data": parsed_data
+            }
 
-        full_prompt = f"{system_instruction}\n\nKullanıcının Mesajı: {request.prompt}"
-        response = model.generate_content(full_prompt)
+        except (json.JSONDecodeError, ValueError) as e:
+            last_error = f"Model {model_name} geçersiz JSON döndürdü: {str(e)}"
+            print(f"⚠️ {last_error}")
+            continue
+        except Exception as e:
+            last_error = str(e)
+            error_msg = traceback.format_exc()
+            print(f"💥 Model {model_name} HATASI:\n{error_msg}")
+            # Model bulunamadı veya quota hatası ise bir sonrakini dene
+            if "not found" in str(e).lower() or "quota" in str(e).lower() or "deprecated" in str(e).lower():
+                continue
+            # Diğer hatalar için de devam et
+            continue
 
-        # AI'ın markdown veya kod bloğu döndürme ihtimaline karşı temizlik yapıyoruz
-        raw_text = response.text.replace('```json', '').replace('```', '').strip()
-        parsed_data = json.loads(raw_text)
-
-        return {
-            "status": "success",
-            "message": "AI metni başarıyla analiz etti 🧠",
-            "data": parsed_data
-        }
-
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=500, detail="AI JSON formatında geçerli bir yanıt veremedi.")
-    except Exception as e:
-        error_msg = traceback.format_exc()
-        print("💥 AI HATASI:\n", error_msg)
-        raise HTTPException(status_code=500, detail=f"AI Analiz Hatası: {str(e)}")
+    # Hiçbir model çalışmadı
+    raise HTTPException(
+        status_code=500,
+        detail=f"AI servisi şu an yanıt veremiyor. Lütfen tekrar deneyin. Hata: {last_error}"
+    )
 
 
 @app.get("/spots/{city}")
