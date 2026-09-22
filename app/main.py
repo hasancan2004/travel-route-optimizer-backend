@@ -21,11 +21,8 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Gemini REST API — (api_version, model_name) pairs, tried in order
 GEMINI_ENDPOINTS = [
-    ("v1beta", "gemini-2.0-flash"),
-    ("v1beta", "gemini-2.0-flash-lite"),
-    ("v1",    "gemini-1.5-flash-latest"),
-    ("v1",    "gemini-1.5-flash"),
-    ("v1beta", "gemini-1.5-flash"),
+    ("v1beta", "gemini-3.5-flash-lite"),
+    ("v1beta", "gemini-3.5-flash"),
 ]
 
 app = FastAPI(
