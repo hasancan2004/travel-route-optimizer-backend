@@ -82,7 +82,8 @@ def map_google_type_to_category(types: List[str]) -> str:
     return "custom"
 
 
-@app.get("/")
+# Render'ın HEAD sağlık kontrolü ve GET istekleri için ortak rota
+@app.api_route("/", methods=["GET", "HEAD"])
 def read_root():
     return {
         "status": "success",
@@ -113,6 +114,8 @@ def analyze_prompt_with_ai(request: AIPromptRequest):
         system_instruction = """
         Sen akıllı bir seyahat asistanısın. Kullanıcının girdiği serbest metni analiz edip, rota algoritmasının anlayacağı parametreleri çıkaracaksın.
         SADECE VE SADECE JSON formatında çıktı ver. Hiçbir ekstra açıklama, selamlama veya markdown formatı kullanma. Çıktı doğrudan parse edilebilir saf JSON olmalı.
+
+        ÖNEMLİ KURAL: Kullanıcı metinde gün sayısını açıkça belirttiyse (örneğin '2 gün', '2 günlük', '3 gün'), 'total_days' değerine KESİNLİKLE kullanıcının belirttiği gün sayısını tam sayı olarak ata.
         Eğer kullanıcı bazı verileri (bütçe, gün) belirtmemişse mantıklı varsayılan değerler ata (Bütçe: 1500, Gün: 2).
 
         Format Kuralları:
