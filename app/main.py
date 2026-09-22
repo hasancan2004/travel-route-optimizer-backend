@@ -2,7 +2,6 @@ import os, uvicorn
 import requests
 import traceback
 import json
-import google.generativeai as genai
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -20,8 +19,8 @@ load_dotenv()
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+# Gemini REST API base URL (v1beta supports all current models)
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
 app = FastAPI(
     title="Travel Route Optimizer API",
@@ -91,14 +90,35 @@ def read_root():
     }
 
 
-# Gemini AI NLP Asistan Endpoint'i (Sabit Model, Güvenilir)
-# Model listesi: öncelik sırasına göre denenecek
+# Gemini AI NLP Asistan Endpoint'i
+# Direct REST API — SDK'dan bağımsız, her zaman çalışır
 GEMINI_MODEL_PRIORITY = [
     "gemini-2.0-flash",
     "gemini-2.0-flash-lite",
     "gemini-1.5-flash",
     "gemini-1.5-flash-8b",
 ]
+
+
+def call_gemini_rest(model_name: str, prompt: str) -> str:
+    """Gemini REST API'yi doğrudan çağırır. SDK gerektirmez."""
+    url = GEMINI_BASE_URL.format(model=model_name)
+    headers = {"Content-Type": "application/json"}
+    params = {"key": GEMINI_API_KEY}
+    body = {
+        "contents": [
+            {"parts": [{"text": prompt}]}
+        ],
+        "generationConfig": {
+            "temperature": 0.1,
+            "maxOutputTokens": 512,
+        }
+    }
+    resp = requests.post(url, headers=headers, params=params, json=body, timeout=20)
+    if resp.status_code != 200:
+        raise Exception(f"HTTP {resp.status_code}: {resp.text}")
+    data = resp.json()
+    return data["candidates"][0]["content"]["parts"][0]["text"]
 
 
 @app.post("/ai-analyze-prompt")
@@ -135,17 +155,16 @@ def analyze_prompt_with_ai(request: AIPromptRequest):
         '{"city": "string", "max_budget": number, "total_days": number, "user_interests": ["string"]}'
     )
 
+    full_prompt = f"{system_instruction}\n\nUser message: {request.prompt}"
+
     last_error = None
     for model_name in GEMINI_MODEL_PRIORITY:
         try:
-            print(f"🤖 Denenen AI Modeli: {model_name}")
-            model = genai.GenerativeModel(model_name)
-            full_prompt = f"{system_instruction}\n\nKullanıcının Mesajı: {request.prompt}"
-            response = model.generate_content(full_prompt)
+            print(f"🤖 Denenen AI Modeli (REST): {model_name}")
+            raw_text = call_gemini_rest(model_name, full_prompt)
 
             # Markdown veya kod bloğu temizliği
-            raw_text = response.text.strip()
-            raw_text = raw_text.replace('```json', '').replace('```', '').strip()
+            raw_text = raw_text.strip().replace('```json', '').replace('```', '').strip()
 
             # JSON bloğunu bul ({ ... })
             start = raw_text.find('{')
@@ -178,12 +197,7 @@ def analyze_prompt_with_ai(request: AIPromptRequest):
             continue
         except Exception as e:
             last_error = str(e)
-            error_msg = traceback.format_exc()
-            print(f"💥 Model {model_name} HATASI:\n{error_msg}")
-            # Model bulunamadı veya quota hatası ise bir sonrakini dene
-            if "not found" in str(e).lower() or "quota" in str(e).lower() or "deprecated" in str(e).lower():
-                continue
-            # Diğer hatalar için de devam et
+            print(f"💥 Model {model_name} HATASI: {last_error}")
             continue
 
     # Hiçbir model çalışmadı
