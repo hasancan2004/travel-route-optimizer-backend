@@ -19,10 +19,10 @@ load_dotenv()
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Gemini REST API — (api_version, model_name) pairs, tried in order
+# DÜZELTME 1: Olmayan 3.5 sürümleri yerine Google'ın en hızlı ve gerçek modelleri eklendi
 GEMINI_ENDPOINTS = [
-    ("v1beta", "gemini-3.5-flash-lite"),
-    ("v1beta", "gemini-3.5-flash"),
+    ("v1beta", "gemini-1.5-flash"),
+    ("v1beta", "gemini-pro"),
 ]
 
 app = FastAPI(
@@ -64,7 +64,7 @@ class ShareTripRequest(BaseModel):
     itinerary: List[dict]
 
 
-# YENİ: Yapay Zeka için İstek Modeli
+# Yapay Zeka için İstek Modeli
 class AIPromptRequest(BaseModel):
     prompt: str
 
@@ -93,10 +93,6 @@ def read_root():
     }
 
 
-# Gemini AI NLP Asistan Endpoint'i
-# Direct REST API — SDK'dan bağımsız, her zaman çalışır
-
-
 def call_gemini_rest(api_version: str, model_name: str, prompt: str) -> str:
     """Gemini REST API'yi doğrudan çağırır. SDK gerektirmez."""
     url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model_name}:generateContent"
@@ -111,9 +107,12 @@ def call_gemini_rest(api_version: str, model_name: str, prompt: str) -> str:
             "maxOutputTokens": 512,
         }
     }
-    resp = requests.post(url, headers=headers, params=params, json=body, timeout=20)
+    # DÜZELTME 2: Timeout süresi 20 saniyeden 60 saniyeye çıkarıldı
+    resp = requests.post(url, headers=headers, params=params, json=body, timeout=60)
+
     if resp.status_code != 200:
         raise Exception(f"HTTP {resp.status_code} [{api_version}/{model_name}]: {resp.text}")
+
     data = resp.json()
     return data["candidates"][0]["content"]["parts"][0]["text"]
 
