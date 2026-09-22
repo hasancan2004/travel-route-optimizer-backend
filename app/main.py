@@ -19,8 +19,14 @@ load_dotenv()
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Gemini REST API base URL (v1beta supports all current models)
-GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+# Gemini REST API — (api_version, model_name) pairs, tried in order
+GEMINI_ENDPOINTS = [
+    ("v1beta", "gemini-2.0-flash"),
+    ("v1beta", "gemini-2.0-flash-lite"),
+    ("v1",    "gemini-1.5-flash-latest"),
+    ("v1",    "gemini-1.5-flash"),
+    ("v1beta", "gemini-1.5-flash"),
+]
 
 app = FastAPI(
     title="Travel Route Optimizer API",
@@ -92,17 +98,11 @@ def read_root():
 
 # Gemini AI NLP Asistan Endpoint'i
 # Direct REST API — SDK'dan bağımsız, her zaman çalışır
-GEMINI_MODEL_PRIORITY = [
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-8b",
-]
 
 
-def call_gemini_rest(model_name: str, prompt: str) -> str:
+def call_gemini_rest(api_version: str, model_name: str, prompt: str) -> str:
     """Gemini REST API'yi doğrudan çağırır. SDK gerektirmez."""
-    url = GEMINI_BASE_URL.format(model=model_name)
+    url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model_name}:generateContent"
     headers = {"Content-Type": "application/json"}
     params = {"key": GEMINI_API_KEY}
     body = {
@@ -116,7 +116,7 @@ def call_gemini_rest(model_name: str, prompt: str) -> str:
     }
     resp = requests.post(url, headers=headers, params=params, json=body, timeout=20)
     if resp.status_code != 200:
-        raise Exception(f"HTTP {resp.status_code}: {resp.text}")
+        raise Exception(f"HTTP {resp.status_code} [{api_version}/{model_name}]: {resp.text}")
     data = resp.json()
     return data["candidates"][0]["content"]["parts"][0]["text"]
 
@@ -158,10 +158,10 @@ def analyze_prompt_with_ai(request: AIPromptRequest):
     full_prompt = f"{system_instruction}\n\nUser message: {request.prompt}"
 
     last_error = None
-    for model_name in GEMINI_MODEL_PRIORITY:
+    for api_version, model_name in GEMINI_ENDPOINTS:
         try:
-            print(f"🤖 Denenen AI Modeli (REST): {model_name}")
-            raw_text = call_gemini_rest(model_name, full_prompt)
+            print(f"🤖 Denenen AI Modeli (REST): {api_version}/{model_name}")
+            raw_text = call_gemini_rest(api_version, model_name, full_prompt)
 
             # Markdown veya kod bloğu temizliği
             raw_text = raw_text.strip().replace('```json', '').replace('```', '').strip()
