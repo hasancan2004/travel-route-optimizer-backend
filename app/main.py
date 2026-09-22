@@ -107,18 +107,32 @@ def analyze_prompt_with_ai(request: AIPromptRequest):
         raise HTTPException(status_code=500, detail="Gemini API Key eksik veya okunamadı!")
 
     system_instruction = (
-        "Sen bir seyahat veri çıkarma motorusun. "
-        "Kullanıcının mesajını analiz et ve YALNIZCA aşağıdaki JSON formatında çıktı ver. "
-        "Hiçbir ek açıklama, selamlama veya markdown kullanma. "
-        "Cevabın ilk karakteri '{' olmalı, son karakteri '}' olmalı.\n\n"
-        "KURALLAR:\n"
-        "1. Gün sayısı açıkça belirtilmişse (örn: '2 gün') total_days = o sayı; aksi halde 2.\n"
-        "2. city = sadece ana şehir adı, küçük harf, Türkçe karakter yok "
-        "(Konya Selçuklu → konya, Kaleiçi Antalya → antalya).\n"
-        "3. max_budget belirtilmemişse 1000.\n"
-        "4. user_interests yalnızca şu değerlerden oluşabilir: history, nature, food, shopping.\n\n"
-        "FORMAT:\n"
-        '{"city": "sehir", "max_budget": 1000, "total_days": 2, "user_interests": ["history"]}'
+        "You are a strict travel data extraction engine. "
+        "Your ONLY job is to parse the user's message and output a single JSON object. "
+        "NEVER greet the user, NEVER ask questions, NEVER explain anything. "
+        "If you cannot extract a field, use the default value shown below. "
+        "Your response must start with '{' and end with '}' — nothing else.\n\n"
+        "RULES:\n"
+        "1. total_days: extract the number of days mentioned (e.g. '2 günlük' → 2, '3 day' → 3). Default: 2.\n"
+        "2. city: extract the city name in lowercase ASCII (no Turkish characters). "
+        "   Turkish char map: ş→s, ç→c, ğ→g, ü→u, ö→o, ı→i, İ→i, Ş→s, Ç→c, Ğ→g, Ü→u, Ö→o. "
+        "   Examples: Antalya→antalya, İstanbul→istanbul, Şanlıurfa→sanliurfa, "
+        "   Kaleiçi Antalya→antalya, Konya Selçuklu→konya.\n"
+        "3. max_budget: extract number if mentioned (e.g. '500 lira' → 500). Default: 1000.\n"
+        "4. user_interests: list from ONLY these values: history, nature, food, shopping. "
+        "   If not mentioned, infer from context (e.g. 'ucuz' → food, 'tarihi' → history). "
+        "   Default: [\"history\", \"nature\"].\n\n"
+        "FEW-SHOT EXAMPLES:\n"
+        "User: 'bana antalyada 2 gunluk rota ayarlar misin?'\n"
+        '→ {"city": "antalya", "max_budget": 1000, "total_days": 2, "user_interests": ["history", "nature"]}\n\n'
+        "User: '3 günlük ucuz bir İstanbul turu çiz'\n"
+        '→ {"city": "istanbul", "max_budget": 500, "total_days": 3, "user_interests": ["food", "history"]}\n\n'
+        "User: 'Konya için 1 günlük rota'\n"
+        '→ {"city": "konya", "max_budget": 1000, "total_days": 1, "user_interests": ["history"]}\n\n'
+        "User: '2 günlük ucuz bir Konya turu çiz'\n"
+        '→ {"city": "konya", "max_budget": 500, "total_days": 2, "user_interests": ["food", "history"]}\n\n'
+        "OUTPUT FORMAT (strictly this and nothing else):\n"
+        '{"city": "string", "max_budget": number, "total_days": number, "user_interests": ["string"]}'
     )
 
     last_error = None
@@ -145,6 +159,11 @@ def analyze_prompt_with_ai(request: AIPromptRequest):
             required_keys = {"city", "max_budget", "total_days", "user_interests"}
             if not required_keys.issubset(parsed_data.keys()):
                 raise ValueError(f"Eksik JSON alanları: {required_keys - parsed_data.keys()}")
+
+            # Normalize city: lowercase + remove Turkish characters
+            city_raw = str(parsed_data.get("city", "")).strip()
+            tr_map = str.maketrans("şçğüöıİŞÇĞÜÖ", "scguoiISCGUO")
+            parsed_data["city"] = city_raw.lower().translate(tr_map)
 
             print(f"✅ AI başarılı ({model_name}): {parsed_data}")
             return {
