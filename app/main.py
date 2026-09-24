@@ -21,9 +21,8 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Gemini model öncelik listesi: en güncel ve hızlı modeller önce denenir.
 GEMINI_ENDPOINTS = [
-    ("v1beta", "gemini-2.0-flash"),
-    ("v1beta", "gemini-1.5-flash"),
-    ("v1beta", "gemini-1.5-pro"),
+    ("v1beta", "gemini-2.5-flash"),
+    ("v1beta", "gemini-2.5-pro"),
 ]
 
 app = FastAPI(
