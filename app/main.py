@@ -19,10 +19,11 @@ load_dotenv()
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Gemini model öncelik listesi: en güncel ve hızlı modeller önce denenir.
+# Gemini model öncelik listesi: Google Eylül 2026 güncellemesine göre
+# yeni projeler için 3.8 Flash veya 3.5 Flash-Lite önerilmektedir.
 GEMINI_ENDPOINTS = [
-    ("v1beta", "gemini-2.5-flash"),
-    ("v1beta", "gemini-2.5-pro"),
+    ("v1beta", "gemini-3.8-flash"),
+    ("v1beta", "gemini-3.5-flash-lite"),
 ]
 
 app = FastAPI(
