@@ -19,8 +19,9 @@ load_dotenv()
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# DÜZELTME: Eski 'gemini-pro' silindi, yerine güncel 'gemini-1.5-pro' eklendi.
+# Gemini model öncelik listesi: en güncel ve hızlı modeller önce denenir.
 GEMINI_ENDPOINTS = [
+    ("v1beta", "gemini-2.0-flash"),
     ("v1beta", "gemini-1.5-flash"),
     ("v1beta", "gemini-1.5-pro"),
 ]
