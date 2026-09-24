@@ -97,17 +97,8 @@ def read_root():
 def call_gemini_rest(api_version: str, model_name: str, prompt: str) -> str:
     """Gemini REST API'yi doğrudan çağırır. SDK gerektirmez."""
     url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model_name}:generateContent"
-    # Yeni 'AQ.' formatındaki key'ler Bearer token olarak gönderilmeli.
-    # Eski 'AIza' formatındaki key'ler ?key= query param ile çalışır.
-    if GEMINI_API_KEY and GEMINI_API_KEY.startswith("AQ."):
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {GEMINI_API_KEY}",
-        }
-        params = {}
-    else:
-        headers = {"Content-Type": "application/json"}
-        params = {"key": GEMINI_API_KEY}
+    headers = {"Content-Type": "application/json"}
+    params = {"key": GEMINI_API_KEY}
     body = {
         "contents": [
             {"parts": [{"text": prompt}]}
