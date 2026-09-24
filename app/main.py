@@ -19,10 +19,10 @@ load_dotenv()
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# DÜZELTME 1: Olmayan 3.5 sürümleri yerine Google'ın en hızlı ve gerçek modelleri eklendi
+# DÜZELTME: Eski 'gemini-pro' silindi, yerine güncel 'gemini-1.5-pro' eklendi.
 GEMINI_ENDPOINTS = [
     ("v1beta", "gemini-1.5-flash"),
-    ("v1beta", "gemini-pro"),
+    ("v1beta", "gemini-1.5-pro"),
 ]
 
 app = FastAPI(
@@ -107,7 +107,7 @@ def call_gemini_rest(api_version: str, model_name: str, prompt: str) -> str:
             "maxOutputTokens": 512,
         }
     }
-    # DÜZELTME 2: Timeout süresi 20 saniyeden 60 saniyeye çıkarıldı
+    # Timeout süresi 60 saniye
     resp = requests.post(url, headers=headers, params=params, json=body, timeout=60)
 
     if resp.status_code != 200:
