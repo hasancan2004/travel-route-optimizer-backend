@@ -19,9 +19,7 @@ load_dotenv()
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Gemini model öncelik listesi: Google Eylül 2026 güncellemesine göre
-# yeni projeler için 3.5 Flash-Lite veya 3.8 Flash önerilmektedir.
-# 3.5-flash-lite en stabil model olduğu için ilk sırada.
+# Senin orijinal ve en doğru listen: 2026 güncel Gemini modelleri
 GEMINI_ENDPOINTS = [
     ("v1beta", "gemini-3.5-flash-lite"),
     ("v1beta", "gemini-3.5-flash"),
@@ -106,8 +104,8 @@ def call_gemini_rest(api_version: str, model_name: str, prompt: str) -> str:
             {"parts": [{"text": prompt}]}
         ],
         "generationConfig": {
-            "temperature": 0.1,
             "maxOutputTokens": 512,
+            # DİKKAT: Yeni nesil 3.5+ modellerde 'temperature' desteği bittiği için kaldırıldı!
         }
     }
     # Timeout süresi 60 saniye
