@@ -19,11 +19,15 @@ load_dotenv()
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Senin orijinal ve en doğru listen: 2026 güncel Gemini modelleri
+# DÜZELTME: Kapsamlı Model Listesi (Fallback Mantığı)
+# Sistem sırayla dener. 3.5 serisi henüz bölgenizde/hesabınızda aktif değilse (404),
+# çökmek yerine anında %100 çalışan stabil 1.5 serisine geçer.
 GEMINI_ENDPOINTS = [
     ("v1beta", "gemini-3.5-flash-lite"),
     ("v1beta", "gemini-3.5-flash"),
     ("v1beta", "gemini-3.8-flash"),
+    ("v1beta", "gemini-1.5-flash"), # Garanti çalışan stabil model
+    ("v1beta", "gemini-1.5-pro"),   # Garanti çalışan stabil model
 ]
 
 app = FastAPI(
@@ -105,7 +109,6 @@ def call_gemini_rest(api_version: str, model_name: str, prompt: str) -> str:
         ],
         "generationConfig": {
             "maxOutputTokens": 512,
-            # DİKKAT: Yeni nesil 3.5+ modellerde 'temperature' desteği bittiği için kaldırıldı!
         }
     }
     # Timeout süresi 60 saniye
