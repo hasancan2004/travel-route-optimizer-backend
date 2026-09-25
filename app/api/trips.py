@@ -8,28 +8,45 @@ from app.database import (
     get_public_itineraries_from_supabase,
     get_user_itineraries_from_supabase
 )
+import traceback
 
 router = APIRouter(tags=["Trip Optimizer & Database"])
 
 @router.post("/optimize-route")
 def optimize_route(request: TripRequest):
-    scored_result = score_places(
-        user_interests=request.user_interests,
-        max_budget=request.max_budget,
-        places=request.places
-    )
+    try:
+        # KORUMA 1: Eğer mekan listesi boşsa algoritmayı hiç yorma, geri çevir.
+        if not request.places or len(request.places) == 0:
+            return {
+                "status": "error",
+                "detail": "Seçilen şehir için Google'dan mekan bulunamadı. Lütfen şehir adını kontrol edin."
+            }
 
-    itinerary = partition_into_days(
-        scored_places=scored_result,
-        total_days=request.total_days,
-        max_walk_per_day=request.max_walk_per_day
-    )
+        scored_result = score_places(
+            user_interests=request.user_interests,
+            max_budget=request.max_budget,
+            places=request.places
+        )
 
-    return {
-        "status": "success",
-        "total_evaluated": len(scored_result),
-        "itinerary": itinerary
-    }
+        itinerary = partition_into_days(
+            scored_places=scored_result,
+            total_days=request.total_days,
+            max_walk_per_day=request.max_walk_per_day
+        )
+
+        return {
+            "status": "success",
+            "total_evaluated": len(scored_result),
+            "itinerary": itinerary
+        }
+    except Exception as e:
+        # KORUMA 2: ML Algoritması çökerse 500 patlatmak yerine hatayı Flutter'a düzgünce ilet.
+        error_details = traceback.format_exc()
+        print(f"💥 OPTİMİZASYON HATASI:\n{error_details}")
+        return {
+            "status": "error",
+            "detail": f"Rota optimize edilirken algoritmik bir hata oluştu: {str(e)}"
+        }
 
 @router.post("/save-itinerary")
 def save_itinerary(request: SaveTripRequest):
