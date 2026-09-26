@@ -9,13 +9,29 @@ from app.database import (
     get_user_itineraries_from_supabase
 )
 import traceback
+import numpy as np  # YENİ: Numpy tiplerini yakalamak için ekledik
 
 router = APIRouter(tags=["Trip Optimizer & Database"])
+
+
+# YENİ ZIRH: ML Algoritmalarından gelen "NumPy" veri tiplerini saf Python tiplerine çevirir.
+def clean_numpy(obj):
+    if isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return [clean_numpy(x) for x in obj.tolist()]
+    elif isinstance(obj, dict):
+        return {k: clean_numpy(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [clean_numpy(x) for x in obj]
+    return obj
+
 
 @router.post("/optimize-route")
 def optimize_route(request: TripRequest):
     try:
-        # KORUMA 1: Eğer mekan listesi boşsa algoritmayı hiç yorma, geri çevir.
         if not request.places or len(request.places) == 0:
             return {
                 "status": "error",
@@ -34,19 +50,22 @@ def optimize_route(request: TripRequest):
             max_walk_per_day=request.max_walk_per_day
         )
 
+        # PATLAYAN YERİN ÇÖZÜMÜ: Göndermeden önce NumPy verilerini temizliyoruz
+        safe_itinerary = clean_numpy(itinerary)
+
         return {
             "status": "success",
             "total_evaluated": len(scored_result),
-            "itinerary": itinerary
+            "itinerary": safe_itinerary
         }
     except Exception as e:
-        # KORUMA 2: ML Algoritması çökerse 500 patlatmak yerine hatayı Flutter'a düzgünce ilet.
         error_details = traceback.format_exc()
         print(f"💥 OPTİMİZASYON HATASI:\n{error_details}")
         return {
             "status": "error",
             "detail": f"Rota optimize edilirken algoritmik bir hata oluştu: {str(e)}"
         }
+
 
 @router.post("/save-itinerary")
 def save_itinerary(request: SaveTripRequest):
@@ -60,6 +79,7 @@ def save_itinerary(request: SaveTripRequest):
         return {"status": "success", "message": "Rota başarıyla buluta kaydedildi!", "data": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Veritabanı Kayıt Hatası: {str(e)}")
+
 
 @router.post("/share-itinerary")
 def share_itinerary(request: ShareTripRequest):
@@ -76,6 +96,7 @@ def share_itinerary(request: ShareTripRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Paylaşım Hatası: {str(e)}")
 
+
 @router.get("/explore-itineraries")
 def explore_itineraries():
     try:
@@ -87,6 +108,7 @@ def explore_itineraries():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Rotalar getirilirken hata oluştu: {str(e)}")
+
 
 @router.get("/user-itineraries/{user_id}")
 def get_user_itineraries(user_id: str):
