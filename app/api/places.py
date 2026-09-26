@@ -56,6 +56,15 @@ def get_city_spots(city: str):
                 if price_level is None:
                     price_level = 0
 
+                # FOTOĞRAF URL'Sİ OLUŞTURMA BÖLÜMÜ
+                image_url = None
+                photos = r.get("photos", [])
+                if photos and len(photos) > 0:
+                    photo_ref = photos[0].get("photo_reference")
+                    if photo_ref:
+                        # Frontend'in doğrudan kullanabileceği hazır URL
+                        image_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference={photo_ref}&key={GOOGLE_PLACES_API_KEY}"
+
                 new_spot = {
                     "city": city_key,
                     "name": r.get("name", "Bilinmeyen Mekan"),
@@ -63,7 +72,8 @@ def get_city_spots(city: str):
                     "rating": float(r.get("rating", 3.0)),
                     "entry_fee": float(max(price_level * 100, 50.0)),
                     "lat": float(r["geometry"]["location"]["lat"]),
-                    "lng": float(r["geometry"]["location"]["lng"])
+                    "lng": float(r["geometry"]["location"]["lng"]),
+                    "image_url": image_url  # YENİ EKLENEN VERİ
                 }
                 new_spots.append(new_spot)
 
@@ -102,6 +112,14 @@ def get_radar_spots(lat: float, lng: float, radius: int = 1500):
         if price_level is None:
             price_level = 0
 
+        # FOTOĞRAF URL'Sİ OLUŞTURMA BÖLÜMÜ (RADAR İÇİN)
+        image_url = None
+        photos = r.get("photos", [])
+        if photos and len(photos) > 0:
+            photo_ref = photos[0].get("photo_reference")
+            if photo_ref:
+                image_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference={photo_ref}&key={GOOGLE_PLACES_API_KEY}"
+
         new_spots.append({
             "city": "radar_live",
             "name": r.get("name"),
@@ -109,7 +127,8 @@ def get_radar_spots(lat: float, lng: float, radius: int = 1500):
             "rating": float(r.get("rating", 3.0)),
             "entry_fee": float(max(price_level * 100, 0.0)),
             "lat": float(r["geometry"]["location"]["lat"]),
-            "lng": float(r["geometry"]["location"]["lng"])
+            "lng": float(r["geometry"]["location"]["lng"]),
+            "image_url": image_url  # YENİ EKLENEN VERİ
         })
 
     return {"status": "success", "total_spots": len(new_spots), "spots": new_spots}
