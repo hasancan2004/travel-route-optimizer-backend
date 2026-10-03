@@ -76,10 +76,22 @@ def save_itinerary(request: SaveTripRequest):
             total_budget=request.max_budget,
             itinerary_data=request.itinerary
         )
-        return {"status": "success", "message": "Rota başarıyla buluta kaydedildi!", "data": result}
+
+        # YENİ: Supabase'den dönen sonucun içinden ID'yi güvenli bir şekilde ayıklıyoruz
+        inserted_id = None
+        if result and isinstance(result, list) and len(result) > 0:
+            inserted_id = result[0].get("id")
+        elif isinstance(result, dict):
+            inserted_id = result.get("id")
+
+        return {
+            "status": "success",
+            "message": "Rota başarıyla buluta kaydedildi!",
+            "data": result,
+            "id": inserted_id  # FLUTTER'IN BEKLEDİĞİ CAN ALICI NOKTA BURASI
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Veritabanı Kayıt Hatası: {str(e)}")
-
 
 @router.post("/share-itinerary")
 def share_itinerary(request: ShareTripRequest):
