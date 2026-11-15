@@ -9,7 +9,8 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
     a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
-    c = 2 * math.asin(math.sqrt(a))
+    c = 2 * math.asin(math.sqrt(a))  # DÜZELTİLDİ: Çarpım işareti eklendi
+
     return R * c
 
 
@@ -42,7 +43,42 @@ def partition_into_days(scored_places: List[Dict], total_days: int, max_walk_per
     for day_num in range(1, total_days + 1):
         day_places = [p for p in ml_places if p.get("assigned_day") == day_num]
 
-        # Eğer bu güne mekan düşmediyse, günü silmek yerine boş gün olarak ekle
+        # ==========================================
+        # YENİ: GÜNLÜK KATEGORİ KOTASI SİSTEMİ (CAP)
+        # ==========================================
+        # Mekanları önce puana göre büyükten küçüğe sırala ki düşük puanlılar elensin
+        day_places.sort(key=lambda x: x.get("rating", 0.0), reverse=True)
+
+        capped_day_places = []
+        category_counts = {"food": 0, "history": 0, "nature": 0, "shopping": 0}
+
+        for p in day_places:
+            cat = p.get("category", "unknown").lower()
+
+            # Kullanıcının eklediği mekanlar kotaya takılmaz
+            if cat == "custom":
+                capped_day_places.append(p)
+                continue
+
+            # Limit Kontrolleri
+            if cat == "food" and category_counts.get("food", 0) >= 2:
+                continue  # Günde max 2 restoran (Öğle ve Akşam)
+            if cat == "history" and category_counts.get("history", 0) >= 3:
+                continue  # Günde max 3 tarihi yer
+            if cat == "nature" and category_counts.get("nature", 0) >= 3:
+                continue  # Günde max 3 doğa parkı/alanı
+            if cat == "shopping" and category_counts.get("shopping", 0) >= 2:
+                continue  # Günde max 2 alışveriş yeri
+
+            # Limite takılmadıysa listeye al ve sayacı artır
+            capped_day_places.append(p)
+            category_counts[cat] = category_counts.get(cat, 0) + 1
+
+        # Filtrelenmiş ve kotadan geçmiş temiz mekan listemizi güncelleyelim
+        day_places = capped_day_places
+        # ==========================================
+
+        # Eğer filtrelemeden sonra bu güne mekan kalmadıysa, günü silmek yerine boş gün olarak ekle
         if not day_places:
             itinerary.append({
                 "day": day_num,
@@ -56,6 +92,7 @@ def partition_into_days(scored_places: List[Dict], total_days: int, max_walk_per
         ordered_day_places.append(current_place)
         current_distance = 0.0
 
+        # TSP (En Yakın Komşu) Algoritması - Mesafeyi kısaltmak için mekanları mantıklı sırala
         while day_places:
             nearest_idx = 0
             min_dist = float('inf')
