@@ -3,25 +3,19 @@ from typing import List, Dict
 import numpy as np
 from sklearn.cluster import KMeans
 
-
 def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     R = 6371.0
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
     a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
     c = 2 * math.asin(math.sqrt(a))
-
     return R * c
 
-
-def partition_into_days(scored_places: List[Dict], total_days: int, max_walk_per_day: float) -> List[Dict]:
+# YENİ: max_places_per_day parametresini ekledik
+def partition_into_days(scored_places: List[Dict], total_days: int, max_walk_per_day: float, max_places_per_day: int = 5) -> List[Dict]:
     if not scored_places:
         return [{"day": d, "places": [], "estimated_walking_km": 0.0} for d in range(1, total_days + 1)]
 
-    # ==========================================
-    # YENİ: BÜTÜN MEKANLARI (CUSTOM DAHİL) KÜMELE
-    # Custom mekanları 1. güne hapsetmek yerine konumlarına göre günlere dağıtıyoruz
-    # ==========================================
     num_clusters = min(total_days, len(scored_places))
 
     if num_clusters > 0:
@@ -33,30 +27,26 @@ def partition_into_days(scored_places: List[Dict], total_days: int, max_walk_per
             place["assigned_day"] = int(labels[i]) + 1
 
     itinerary = []
-    MAX_PLACES_PER_DAY = 5  # YENİ: Günde maksimum gezilecek mekan sınırı (Yorulmayı engeller)
 
     for day_num in range(1, total_days + 1):
         day_places = [p for p in scored_places if p.get("assigned_day") == day_num]
 
-        # Mekanları sırala: Önce kullanıcının kendi ekledikleri (custom), sonra puana göre
         day_places.sort(key=lambda x: (x.get("category", "") != "custom", -x.get("rating", 0.0)))
 
         capped_day_places = []
         category_counts = {"food": 0, "history": 0, "nature": 0, "shopping": 0}
 
         for p in day_places:
-            # Günlük toplam mekan kotası dolduysa diğer mekanları ele
-            if len(capped_day_places) >= MAX_PLACES_PER_DAY:
+            # YENİ: Artık dışarıdan gelen dinamik limiti kullanıyor!
+            if len(capped_day_places) >= max_places_per_day:
                 break
 
             cat = p.get("category", "unknown").lower()
 
-            # Kullanıcının özel eklediği mekanlar kategori kotalarına takılmaz
             if cat == "custom":
                 capped_day_places.append(p)
                 continue
 
-            # Kategori Limit Kontrolleri
             if cat == "food" and category_counts.get("food", 0) >= 2:
                 continue
             if cat == "history" and category_counts.get("history", 0) >= 3:
@@ -79,7 +69,6 @@ def partition_into_days(scored_places: List[Dict], total_days: int, max_walk_per
             })
             continue
 
-        # TSP (En Yakın Komşu) Algoritması - Kalan mekanları en kısa yürüyüşe göre sırala
         ordered_day_places = []
         current_place = day_places.pop(0)
         ordered_day_places.append(current_place)

@@ -6,6 +6,7 @@ class TripRequest(BaseModel):
     max_budget: float
     total_days: int
     max_walk_per_day: float
+    max_places_per_day: int = 5 # YENİ EKLENEN: Varsayılan olarak 5, Flutter'dan gelirse o değer kullanılır.
     places: List[dict]
 
 class SaveTripRequest(BaseModel):

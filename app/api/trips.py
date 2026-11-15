@@ -9,12 +9,10 @@ from app.database import (
     get_user_itineraries_from_supabase
 )
 import traceback
-import numpy as np  # YENİ: Numpy tiplerini yakalamak için ekledik
+import numpy as np
 
 router = APIRouter(tags=["Trip Optimizer & Database"])
 
-
-# YENİ ZIRH: ML Algoritmalarından gelen "NumPy" veri tiplerini saf Python tiplerine çevirir.
 def clean_numpy(obj):
     if isinstance(obj, np.integer):
         return int(obj)
@@ -47,10 +45,10 @@ def optimize_route(request: TripRequest):
         itinerary = partition_into_days(
             scored_places=scored_result,
             total_days=request.total_days,
-            max_walk_per_day=request.max_walk_per_day
+            max_walk_per_day=request.max_walk_per_day,
+            max_places_per_day=request.max_places_per_day # YENİ: Dışarıdan gelen limiti algoritmaya yolladık
         )
 
-        # PATLAYAN YERİN ÇÖZÜMÜ: Göndermeden önce NumPy verilerini temizliyoruz
         safe_itinerary = clean_numpy(itinerary)
 
         return {
@@ -65,7 +63,6 @@ def optimize_route(request: TripRequest):
             "status": "error",
             "detail": f"Rota optimize edilirken algoritmik bir hata oluştu: {str(e)}"
         }
-
 
 @router.post("/save-itinerary")
 def save_itinerary(request: SaveTripRequest):
